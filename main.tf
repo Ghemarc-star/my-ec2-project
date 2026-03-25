@@ -20,7 +20,7 @@ data "aws_ami" "amazon_linux_2" {
   }
 }
 
-# Security Group para sa web server
+# Security Group
 resource "aws_security_group" "web_sg" {
   name        = "my-web-sg"
   description = "Allow HTTP and SSH"
@@ -54,34 +54,25 @@ resource "aws_security_group" "web_sg" {
   }
 }
 
-# EC2 Instance
+# EC2 Instance with user_data
 resource "aws_instance" "my_server" {
-  ami           = data.aws_ami.amazon_linux_2.id # ← dynamic!
+  ami           = data.aws_ami.amazon_linux_2.id
   instance_type = "t3.micro"
 
   vpc_security_group_ids = [aws_security_group.web_sg.id]
+  key_name               = "default-ec2"
 
-  key_name = "default-ec2"
+  user_data = <<-EOF
+    #!/bin/bash
+    yum update -y
+    yum install -y httpd
+    systemctl start httpd
+    systemctl enable httpd
+    echo '<h1>Hello from my EC2!</h1><p>This is my first Terraform project.</p>' > /var/www/html/index.html
+  EOF
 
   tags = {
     Name = "my-web-server"
-  }
-
-  connection {
-    type        = "ssh"
-    user        = "ec2-user"
-    private_key = file("C:/Users/Ghemarc/aws/aws_keys/default-ec2.pem")
-    host        = self.public_ip
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "sudo yum update -y",
-      "sudo yum install -y httpd",
-      "sudo systemctl start httpd",
-      "sudo systemctl enable httpd",
-      "echo '<h1>Hello from my EC2!</h1><p>This is my first Terraform project.</p>' | sudo tee /var/www/html/index.html"
-    ]
   }
 }
 
